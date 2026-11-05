@@ -1,0 +1,114 @@
+import React from "react";
+import styled from "@emotion/styled";
+import { Sidebar, TeamModal } from "@xquare/user-interfaces";
+import { useUserName, useTeams } from "@xquare/hooks";
+import { useNavigate } from "react-router-dom";
+import { getSelectedTeam } from "@xquare/utils";
+
+interface LayoutProps {
+  children: React.ReactNode;
+  searchPlaceholder?: string;
+  onSearch?: (text: string) => void;
+}
+
+function Layout({
+  children,
+  searchPlaceholder = "검색어를 입력하세요",
+  onSearch,
+}: LayoutProps) {
+  const navigate = useNavigate();
+  const { userName, loading } = useUserName();
+  const {
+    data: teams,
+    loading: teamsLoading,
+    error: teamsError,
+    refetch: refetchTeams,
+  } = useTeams();
+  const [autoTeamModalOpen, setAutoTeamModalOpen] = React.useState(false);
+  const hasCheckedInitialTeamRef = React.useRef(false);
+
+  React.useEffect(() => {
+    if (hasCheckedInitialTeamRef.current || teamsLoading || teamsError) return;
+
+    hasCheckedInitialTeamRef.current = true;
+
+    if (!getSelectedTeam() && teams && teams.length > 0) {
+      setAutoTeamModalOpen(true);
+    }
+  }, [teams, teamsLoading, teamsError]);
+
+  const navItems = React.useMemo(
+    () => [
+      { id: "home", label: "HOME", path: "/" },
+      { id: "notice", label: "NOTICE", path: "/notice" },
+      { id: "deployment", label: "DEPLOYMENT", path: "/deployment" },
+      { id: "addons", label: "ADDONS", path: "/addons" },
+      { id: "summary", label: "SUMMARY", path: "/summary" },
+      { id: "team", label: "TEAM", path: "/team" },
+      // { id: "feed", label: "FEED", path: "/feed" },
+    ],
+    [],
+  );
+
+  const handleNavItemClick = (itemId: string) => {
+    const routeMap: Record<string, string> = {
+      home: "/",
+      deployment: "/deployment",
+      addons: "/addons",
+      summary: "/summary",
+      notice: "/notice",
+      team: "/team",
+      // feed: "/feed",
+    };
+
+    const path = routeMap[itemId];
+    if (!path) return;
+    navigate(path);
+  };
+
+  return (
+    <Container>
+      <Sidebar
+        navItems={navItems}
+        userName={userName ?? (loading ? "Loading..." : "")}
+        projectName=""
+        searchPlaceholder={searchPlaceholder}
+        teams={teams ?? []}
+        teamsLoading={teamsLoading}
+        teamsError={teamsError}
+        onNavItemClick={handleNavItemClick}
+        onSearch={onSearch}
+        onTeamCreated={refetchTeams}
+        onTeamUpdated={refetchTeams}
+      />
+      <Page>{children}</Page>
+
+      {autoTeamModalOpen && (
+        <TeamModal
+          teams={teams ?? []}
+          loading={teamsLoading}
+          error={teamsError}
+          onSelectTeam={() => setAutoTeamModalOpen(false)}
+          onClose={() => setAutoTeamModalOpen(false)}
+          onTeamCreated={refetchTeams}
+        />
+      )}
+    </Container>
+  );
+}
+
+const Container = styled.div`
+  display: flex;
+  flex-direction: row;
+  cursor: default;
+`;
+
+const Page = styled.div`
+  margin-left: 280px;
+  width: calc(100% - 280px);
+  height: 100vh;
+  overflow-y: auto;
+  cursor: default;
+`;
+
+export default Layout;
